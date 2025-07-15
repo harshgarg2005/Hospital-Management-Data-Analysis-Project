@@ -5,6 +5,7 @@ The aim of this project was to design a relational database for a hospital manag
 
 Database Used:
 Db Name: Hospital_Management_Data
+
 Tables Name:- 
 01. appointment Table
 02. billing
