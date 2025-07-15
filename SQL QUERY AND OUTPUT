@@ -16,10 +16,13 @@ ORDER BY
     registration_year;
 
 #OUTPUT:-
-registration_year |   total_patients_registered
-NULL              |   50
+registration_year        	total_patients_registered
+2020	                    15
+2021	                    23
+2022	                    19
+2023	                    30
 
-
+#each year total patients registered are 50
 #Q.2 Identify patients who have paid more than the average billing amount for their treatments?
 #Ans:
 SELECT
