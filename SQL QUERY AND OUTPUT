@@ -3,27 +3,73 @@ Use Hospital_Management_Data;
 
 #Case Study By The Database
 
-#Q.1 How many patients registered in each year?
+#Q.1 Find the names of patients who have spent more than the average billing amount on treatments performed by doctors specializing in 'Dermatology'.
 #Ans:-
-SELECT
-    YEAR(registration_date) AS registration_year,
-    COUNT(patient_id) AS total_patients_registered
-FROM
-    patient
-GROUP BY
-    registration_year
-ORDER BY
-    registration_year;
+    SELECT 
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        SUM(b.amount) AS total_spent
+    FROM 
+        patient p
+    JOIN 
+        appointment a ON p.patient_id = a.patient_id
+    JOIN 
+        doctors d ON a.doctor_id = d.doctor_id
+    JOIN 
+        billing b ON p.patient_id = b.patient_id
+    WHERE 
+        d.specialization = 'Dermatology'
+    GROUP BY 
+        p.patient_id, p.first_name, p.last_name
+    HAVING 
+        total_spent > (
+            SELECT 
+                AVG(amount)
+            FROM 
+                billing
+        );
 
 #OUTPUT:-
-registration_year        	total_patients_registered
-2020	                    15
-2021	                    23
-2022	                    19
-2023	                    30
+patient_name         |          total_spent
+Alex Smith	                    18208.78
+Alex Moore	                    40970.01
+Emily Miller                	34164.96
+Robert Wilson                	39026.34
+Linda Miller	                39362.880000000005
+David Williams                	7719.07
+Michael Taylor	                68903.82
+Jane Wilson	                    14357.43
+David Wilson	                55829.729999999996
+John Brown	                    13143.449999999999
+David Smith                    	26649
+Laura Davis                    	60106.16000000001
+John Taylor	                    31463.1
+Robert Williams	                41660.669999999984
+Alex Taylor	                    13236.19
+Jane Moore	                    10423.17
+David Moore                    	70662.18000000001
+Emily Moore                    	5588.64
+Michael Wilson	                28123.829999999998
+Michael Wilson	                64750.68000000001
+Michael Wilson                	12234.85
+Linda Johnson	                13237.689999999999
+Michael Taylor                	15929.150000000001
+Robert Miller	                27464.04
+Sarah Miller                	20817.799999999996
+Sarah Brown                    	31430.100000000006
+Emily Smith                    	5968.74
+Laura Wilson	                22412.760000000002
+David Wilson                	36814.84
+Linda Brown                    	9894.06
+Laura Johnson                	27924.240000000005
+Jane Jones	                    14850.28
+David Davis	                    3636.8900000000003
+Alex Johnson	                21468.760000000002
+Laura Wilson                	5087.79
+Jane Smith	                    4506.780000000001
+David Smith                    	7537.98
 
-#each year total patients registered are 50
-#Q.2 Identify patients who have paid more than the average billing amount for their treatments?
+
+#Q.2 List all patients who have received more than >3 type of treatment?
 #Ans:
 SELECT
     DISTINCT p.first_name,
@@ -38,41 +84,21 @@ ORDER BY
     p.first_name, p.last_name;
 
 #OUTPUT
+patient_name       |        treatment_count
+David Wilson	            4
+Michael Taylor              4
+Laura Davis                	5
+Michael Taylor            	4
+Jane Jones	                4
+Sarah Miller            	4
+Linda Johnson	            4
+John Taylor                	4
+David Smith                	4
+Alex Moore	                4
+David Wilson            	4
+Michael Wilson            	4
 
-first_name | last_name
-Alex         Johnson
-Alex         Moore
-Alex         Smith
-Alex         Taylor
-David        Moore
-David        Smith
-David        Williams
-David        Wilson
-Emily        Jones
-Emily        Miller
-Emily        Smith
-Emily        Williams
-Jane         Jones
-Jane         Moore
-Jane         Wilson
-John         Brown
-John         Taylor
-Laura        Davis
-Laura        Johnson
-Laura        Jones
-Laura        Wilson
-Linda        Johnson
-Linda        Miller
-Michael      Johnson
-Michael      Taylor
-Michael      Wilson
-Robert       Miller
-Robert       Taylor
-Robert       Williams
-Robert       Wilson
-Sarah        Brown
-Sarah        Miller
-    
+
 #Q.3 What is the most common reason for a visit?
 #Ans:
 SELECT
@@ -154,7 +180,7 @@ FROM
 JOIN
     appointment a ON d.doctor_id = a.doctor_id
 JOIN
-    billing b ON a.patient_id = b.patient_id -- Link patient through appointment to billing
+    billing b ON a.patient_id = b.patient_id 
 WHERE
     b.payment_status = 'Paid'
 GROUP BY
