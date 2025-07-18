@@ -1,7 +1,9 @@
+# create db
 create database Hospital_Management_Data;
+# use db
 Use Hospital_Management_Data;
 
-#Case Study By The Database
+#Case Study of The Database
 
 #Q.1 Find the names of patients who have spent more than the average billing amount on treatments performed by doctors specializing in 'Dermatology'.
 #Ans:-
@@ -128,7 +130,8 @@ Checkup	           |   45
 #What I am learned:-
 # I used SQL to find the most common reason patients visited the hospital 
 # By grouping appointment records by reason_for_visit and counting occurrences,
-# I learned how to summarize and rank categorical data using GROUP BY COUNT() and LIMIT for quick insights in healthcare data.
+# I learned how to summarize and rank categorical data
+# using GROUP BY COUNT() and LIMIT for quick insights in healthcare data.
 
 #Q.4 List all patients who are insured by Wellness Corp?
 #Ans: 
@@ -226,6 +229,11 @@ Jane	            Smith	            80521.49000000002
 David	            Jones	            72414.84999999999
 Robert	            Davis	            52809.509999999995
 
+# What i am learned
+# how to use SQL JOINs across several tables doctors appointments and billing to determine the
+# total amount of money made by each doctor.
+# I gained knowledge about relational data aggregation by applying filtering with WHERE for "Paid" bills
+# and analyzing revenue using GROUP BY and SUM().
 
 #Q.7 Which doctor has the highest average billing amount per treatment?
 #Ans:
@@ -249,6 +257,11 @@ LIMIT 1;
 first_name         last_name         average_billing_amount_per_treatment
 Robert	           Davis	         3041.655322580646
 
+# What i am learned
+# I determined which physician charged the most on average for each treatment.
+# I applied the AVG() function and linked the doctors, appointment, and billing tables using JOINS.
+# Finding the best-performing physicians based on revenue efficiency was made easier 
+# by sorting using ORDER BY and limiting the results.
 
 #Q.8 For each month, what is the total number of appointments and total billing amount?
 #Ans:
@@ -270,6 +283,12 @@ ORDER BY
 appointment_month            total_appointments         total_billing_amount
 NULL                	     1002	                    2748290.1600000006
 
+# What i am lerned
+# I learned how to group data using DATE_FORMAT() on appointment dates in
+# order to extract monthly trends from this analysis. 
+# I used COUNT() and SUM() to determine the monthly total of appointments and billing 
+# by joining the appointment and billing tables.
+# My abilities in time-based data aggregation and reporting were enhanced.
 
 #Q.9 List the patients who have appointments with 'Dr. David Taylor’?
 #Ans:
@@ -306,6 +325,12 @@ Jane	            Wilson
 Linda	            Brown
 Emily	            Miller
 
+# What i am learned
+# I worked on finding particular relationships in a healthcare database 
+# by filtering and joining several tables.
+# I strengthened query logic and data relationships by extracting patients connected to
+# Dr. David Taylor by applying conditions on doctor names and utilizing joins between the
+# patient, appointment, and doctors tables.
 
 #Q.10 How many appointments are scheduled for each doctor?
 #Ans:
@@ -336,3 +361,8 @@ Linda	           Brown	        16
 David	           Jones	        14
 Robert	           Davis	        13
 
+# What i am learned
+# Using an LEFT JOIN between doctors and appointment tables
+# I discovered how to determine how many appointments are planned for each doctor.
+# To guarantee accurate aggregation, I used COUNT() and grouped by doctor details. 
+# My comprehension of relational joins and summary statistics in healthcare datasets has improved as a result.
