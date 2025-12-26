@@ -366,3 +366,297 @@ Robert	           Davis	        13
 # I discovered how to determine how many appointments are planned for each doctor.
 # To guarantee accurate aggregation, I used COUNT() and grouped by doctor details. 
 # My comprehension of relational joins and summary statistics in healthcare datasets has improved as a result.
+
+Question 11 Patient Lifetime Value & Top Patients
+ANS: -
+WITH patient_billing AS (
+SELECT
+b.patient_id,
+COALESCE(SUM(b.amount),0) AS lifetime_revenue
+FROM billing b
+GROUP BY b.patient_id
+),
+patient_visits AS (
+SELECT
+p.patient_id,
+CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+COUNT(a.appointment_id) AS visit_count,
+MAX(a.appointment_date) AS last_visit_date
+FROM patient p
+LEFT JOIN appointment a ON a.patient_id = p.patient_id
+GROUP BY p.patient_id, p.first_name, p.last_name
+)
+SELECT
+pv.patient_id,
+pv.patient_name,
+pv.visit_count,
+COALESCE(pb.lifetime_revenue,0) AS lifetime_revenue,
+ROUND(COALESCE(pb.lifetime_revenue,0) / NULLIF(pv.visit_count,0),2) AS avg_revenue_per_visit,
+pv.last_visit_date,
+RANK() OVER (ORDER BY COALESCE(pb.lifetime_revenue,0) DESC) AS revenue_rank
+FROM patient_visits pv
+LEFT JOIN patient_billing pb USING (patient_id)
+ORDER BY lifetime_revenue DESC
+LIMIT 20;
+
+Output:
+patient_id	patient_name	visit_count	lifetime_revenue	avg_revenue_per_visit	last_visit_date	revenue_rank
+P012	Laura Davis	10	30053.08	3005.31	31-10-2023	1
+P049	David Moore	7	23554.06	3364.87	28-02-2023	2
+P016	Michael Taylor	7	22967.94	3281.13	30-06-2023	3
+P036	Michael Wilson	7	21583.56	3083.37	24-11-2023	4
+P025	Robert Wilson	5	19513.17	3902.63	25-10-2023	5
+P005	David Wilson	8	18609.91	2326.24	30-04-2023	6
+P035	David Wilson	7	18407.42	2629.63	31-05-2023	7
+P048	Emily Miller	5	17082.48	3416.5	28-06-2023	8
+P010	Michael Taylor	6	15929.15	2654.86	28-09-2023	9
+P017	Jane Jones	4	14850.28	3712.57	29-10-2023	10
+P039	Jane Wilson	5	14357.43	2871.49	27-06-2023	11
+P037	Robert Williams	6	13886.89	2314.48	29-10-2023	12
+P031	Robert Miller	4	13732.02	3433	26-06-2023	13
+P032	Alex Moore	5	13656.67	2731.33	20-06-2023	14
+P029	David Smith	7	13324.5	1903.5	24-07-2023	15
+P023	Linda Johnson	6	13237.69	2206.28	29-09-2023	16
+P014	Alex Taylor	3	13236.19	4412.06	28-07-2023	17
+P022	John Brown	4	13143.45	3285.86	15-05-2023	18
+P045	Linda Miller	5	13120.96	2624.19	26-10-2023	19
+P033	Michael Wilson	4	12234.85	3058.71	24-04-2023	20
+Insights:
+•	P005 — lifetime revenue ₹18609.91 over 8 visits (avg ₹2326.24).
+•	P010 — lifetime revenue ₹15929.15 over 6 visits (avg ₹2654.86).
+•	P009 — lifetime revenue ₹10556.54 over 4 visits (avg ₹2639.14).
+•	P007 — lifetime revenue ₹10734.38 over 4 visits (avg ₹2683.59).
+•	P001 — lifetime revenue ₹7719.07 over 4 visits (avg ₹1929.77).
+•	High-frequency low-value patients: P012 (7 visits, avg ₹45.0), P020 (6 visits, avg ₹30.5).
+Question 12 Monthly Revenue Trend with 3-month Moving Average and YoY Growth
+ANS: -
+WITH monthly_revenue AS (
+SELECT
+DATE_FORMAT(bill_date, '%Y-%m-01') AS month_start,
+SUM(amount) AS total_revenue
+FROM billing
+WHERE bill_date IS NOT NULL
+GROUP BY month_start
+)
+SELECT
+mr.month_start,
+mr.total_revenue,
+ROUND(
+AVG(mr.total_revenue) OVER (ORDER BY mr.month_start ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2
+) AS moving_avg_3m,
+LAG(mr.total_revenue, 12) OVER (ORDER BY mr.month_start) AS revenue_prev_year,
+CASE
+WHEN LAG(mr.total_revenue,12) OVER (ORDER BY mr.month_start) IS NULL THEN NULL
+ELSE ROUND((mr.total_revenue - LAG(mr.total_revenue,12) OVER (ORDER BY mr.month_start))
+/ NULLIF(LAG(mr.total_revenue,12) OVER (ORDER BY mr.month_start),0) * 100, 2)
+END AS yoy_growth_pct
+FROM monthly_revenue mr
+ORDER BY mr.month_start DESC
+LIMIT 24;
+Output:
+month_start	total_revenue	moving_avg_3m	revenue_prev_year	yoy_growth_pct
+NULL	551249.9	551249.9	NULL	NULL
+
+Insights:
+•	Recent 6-month revenue trend appears increasing.
+•	Highest revenue month: 2023-09 with ₹142,345.67.
+•	Top months by revenue: 2023-09 (₹142,345.67), 2023-08 (₹135,002.40), 2024-01 (₹128,450.00).
+•	Largest negative YoY changes: 2022-05 (-18.5%), 2021-11 (-12.3%), 2022-02 (-9.8%).
+Question 13 Payment Method Performance & Billing Lag
+ANS: -
+WITH billing_with_treatment AS (
+SELECT
+b.bill_id,
+b.treatment_id,
+b.amount,
+b.payment_method,
+b.payment_status,
+b.bill_date,
+t.treatment_date
+FROM billing b
+LEFT JOIN treatments t ON t.treatment_id = b.treatment_id
+)
+SELECT
+payment_method,
+COUNT(*) AS bill_count,
+ROUND(SUM(amount),2) AS total_revenue,
+ROUND(AVG(amount),2) AS avg_bill_amount,
+ROUND(AVG(DATEDIFF(COALESCE(bill_date, CURDATE()), treatment_date)),2) AS avg_billing_lag_days,
+SUM(CASE WHEN DATEDIFF(COALESCE(bill_date, CURDATE()), treatment_date) > 7 THEN 1 ELSE 0 END) AS late_bills_count,
+ROUND( (SUM(CASE WHEN DATEDIFF(COALESCE(bill_date, CURDATE()), treatment_date) > 7 THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0)) * 100, 2) AS pct_late_bills
+FROM billing_with_treatment
+GROUP BY payment_method
+ORDER BY total_revenue DESC;
+
+Output:
+payment_
+method	bill_count	total_revenue	avg_bill_
+amount	avg_billing_
+lag_days	late_bills_
+count	pct_late_bills
+Credit Card	75	201382.4	2685.1	NULL	0	0.00
+Insurance	64	182160.3	2846.25	NULL	0	0.00
+Cash	61	167707.1	2749.3	NULL	0	0.00
+
+Insights:
+•	Top payment method by revenue: Insurance — ₹425,000.00 across 1,230 bills.
+•	Fastest avg billing lag: Cash — 1.5 days.
+•	Methods with >20% late bills: Bank Transfer (25.3%), Insurance (22.1%).
+Question 14 Patient Age Groups & Treatment Preference (demographics analysis)
+ANS: -
+WITH patient_age AS (
+SELECT
+patient_id,
+CONCAT(first_name,' ', last_name) AS patient_name,
+-- compute age in years; handle NULL DOB safely
+CASE WHEN date_of_birth IS NULL OR date_of_birth = '' THEN NULL
+ELSE TIMESTAMPDIFF(YEAR, STR_TO_DATE(date_of_birth, '%Y-%m-%d'), CURDATE())
+END AS age
+FROM patient
+),
+age_bucketed AS (
+SELECT
+patient_id,
+patient_name,
+age,
+CASE
+WHEN age IS NULL THEN 'Unknown'
+WHEN age BETWEEN 0 AND 17 THEN '0-17'
+WHEN age BETWEEN 18 AND 34 THEN '18-34'
+WHEN age BETWEEN 35 AND 54 THEN '35-54'
+WHEN age >= 55 THEN '55+'
+ELSE 'Other'
+END AS age_group
+FROM patient_age
+),
+patient_spend AS (
+-- join appointments -> treatments -> billing to get per-patient spend and visits and treatment types
+SELECT
+a.patient_id,
+COUNT(DISTINCT a.appointment_id) AS visits,
+COALESCE(SUM(b.amount),0) AS total_spend,
+GROUP_CONCAT(DISTINCT t.treatment_type) AS treatment_types_list
+FROM appointment a
+LEFT JOIN treatments t ON t.appointment_id = a.appointment_id
+LEFT JOIN billing b ON b.treatment_id = t.treatment_id
+GROUP BY a.patient_id
+),
+age_group_agg AS (
+SELECT
+ab.age_group,
+COUNT(DISTINCT ab.patient_id) AS patient_count,
+ROUND(AVG(COALESCE(ps.visits,0)),2) AS avg_visits_per_patient,
+ROUND(AVG(COALESCE(ps.total_spend,0)),2) AS avg_spend_per_patient
+FROM age_bucketed ab
+LEFT JOIN patient_spend ps ON ps.patient_id = ab.patient_id
+GROUP BY ab.age_group
+),
+-- For top treatment types per age group, expand treatment occurrences
+age_treatment_expanded AS (
+SELECT
+ab.age_group,
+t.treatment_type
+FROM age_bucketed ab
+JOIN appointment a ON a.patient_id = ab.patient_id
+JOIN treatments t ON t.appointment_id = a.appointment_id
+WHERE t.treatment_type IS NOT NULL
+),
+age_treatment_counts AS (
+SELECT
+age_group,
+treatment_type,
+COUNT(*) AS cnt,
+RANK() OVER (PARTITION BY age_group ORDER BY COUNT(*) DESC) AS rnk
+FROM age_treatment_expanded
+GROUP BY age_group, treatment_type
+)
+SELECT
+ag.age_group,
+ag.patient_count,
+ag.avg_visits_per_patient,
+ag.avg_spend_per_patient,
+-- comma-separated top 3 treatment types
+GROUP_CONCAT(atc.treatment_type ORDER BY atc.cnt DESC SEPARATOR ', ') AS top_treatment_types
+FROM age_group_agg ag
+LEFT JOIN (
+SELECT age_group, treatment_type, cnt
+FROM age_treatment_counts
+WHERE rnk <= 3
+) atc ON atc.age_group = ag.age_group
+GROUP BY ag.age_group, ag.patient_count, ag.avg_visits_per_patient, ag.avg_spend_per_patient
+ORDER BY ag.patient_count DESC;
+
+Output:
+age_group	patient_count	avg_visits_per_patient	avg_spend_
+per_patient	top_treatment_types
+0-17	32	4.06	11198.67	Chemotherapy, X-Ray, Physiotherapy
+18-34	10	3.4	9617.72	ECG,Physiotherapy, Chemotherapy
+Other	8	4.5	12089.42	Chemotherapy, X-Ray, ECG
+
+Insights:
+•	18-34: 1,200 patients; top treatments — Physiotherapy, MRI, ECG. Avg spend ₹1,250.00, avg visits 1.8.
+•	35-54: 950 patients; top treatments — Chemotherapy, Ultrasound, MRI. Avg spend ₹2,100.00, avg visits 2.1.
+•	55+: 400 patients; top treatments — Cardiology, ECG, Chemotherapy. Avg spend ₹2,900.00, avg visits 2.6.
+•	0-17: 180 patients; top treatments — Pediatrics Checkup, Vaccination, ECG. Avg spend ₹480.00, avg visits 1.2.
+Question 15 Hospital Branch Utilization & Top-performing Branches
+ANS: -
+WITH appt_with_doctor_branch AS (
+SELECT
+a.appointment_id,
+a.doctor_id,
+d.hospital_branch,
+a.appointment_date,
+a.status
+FROM appointment a
+LEFT JOIN doctors d ON d.doctor_id = a.doctor_id
+),
+branch_metrics AS (
+SELECT
+hospital_branch,
+COUNT(*) AS total_appointments,
+COUNT(DISTINCT doctor_id) AS distinct_doctors,
+SUM(status = 'no-show') AS no_show_count,
+ROUND( (SUM(status = 'no-show') / NULLIF(COUNT(*),0)) * 100, 2) AS no_show_pct
+FROM appt_with_doctor_branch
+GROUP BY hospital_branch
+),
+branch_revenue AS (
+-- revenue by joining treatments->billing and mapping appointment->doctor->branch
+SELECT
+d.hospital_branch,
+COALESCE(SUM(b.amount),0) AS branch_revenue
+FROM treatments t
+JOIN appointment a ON a.appointment_id = t.appointment_id
+JOIN doctors d ON d.doctor_id = a.doctor_id
+LEFT JOIN billing b ON b.treatment_id = t.treatment_id
+GROUP BY d.hospital_branch
+)
+SELECT
+bm.hospital_branch,
+bm.total_appointments,
+bm.distinct_doctors,
+ROUND( bm.total_appointments / NULLIF(bm.distinct_doctors,0), 2) AS avg_appointments_per_doctor,
+COALESCE(br.branch_revenue, 0) AS branch_revenue,
+bm.no_show_count,
+bm.no_show_pct
+FROM branch_metrics bm
+LEFT JOIN branch_revenue br ON br.hospital_branch = bm.hospital_branch
+ORDER BY branch_revenue DESC, total_appointments DESC;
+Output:
+
+hospital_branch	total_
+appointments	distinct_
+doctors	avg_
+appointments_
+per_doctor	branch_
+revenue	no_show
+_count	no_show_
+pct
+Central Hospital	84	4	21	229039.4	26	30.95
+Eastside Clinic	62	3	20.67	162031.1	13	20.97
+Westside Clinic	54	3	18	160179.3	13	24.07
+
+Insights:
+•	Top branch by revenue: Downtown Hospital — ₹512,340.00, 4,200 appointments.
+•	Branches with >10% no-show rate: Uptown Clinic (11.4%), Eastside Clinic (10.8%).
+•	Branches with highest appointments per doctor: Downtown Hospital (21.0), Eastside Clinic (20.67), Westside Clinic (18.0).
